@@ -1,162 +1,135 @@
-import os
 import time
 from termcolor import colored
-from copy import copy, deepcopy
-import numpy as np
-# A Backtracking program
-# in Python to solve Sudoku problem
-count = 0
-# A Utility Function to print the Grid
-def print_grid(arr):
-    for i in range(9):
-        for j in range(9):
-            if (arr[i][j] == 0):
-                print (colored (arr[i][j], 'red'), end =" ")
-            else:
-                print (arr[i][j], end =" ")
-        print ()
+import copy
+import os
 
-# Function to Find the entry in
-# the Grid that is still  not used
-# Searches the grid to find an
-# entry that is still unassigned. If
-# found, the reference parameters
-# row, col will be set the location
-# that is unassigned, and true is
-# returned. If no unassigned entries
-# remains, false is returned.
-# 'l' is a list  variable that has
-# been passed from the solve_sudoku function
-# to keep track of incrementation
-# of Rows and Columns
-def find_empty_location(arr, l):
-    for row in range(9):
-        for col in range(9):
-            if(arr[row][col]== 0):
-                l[0]= row
-                l[1]= col
-                return True
-    return False
+class ai:
+    def __init__(self,dimensions,file):
+        self.dimensions = dimensions                                            #dimensions of the puzzle matrix
+        self.nodes = 0                                                          #nodes visited expanded kept in count
+        with open(file) as f_read:
+            data = f_read.readlines()
+            self.test = [list(x.strip()) for x in data]                         #reading the puzzle file
+            #self.board = [list(x.strip()) for x in data]
+        self.board = copy.deepcopy(self.test)                                   #keeping a copy for display purposes
+        self.list_of_choices_list = self.get_list_of_choices_list()             #A list  of list that stores all possible choices for the
+                                                                                #elements to be filled
+    def display(self):
+        for i in range(self.dimensions):
+            for j in range(self.dimensions):
+                if (self.board[i][j] == '0'):
+                    print (colored (self.board[i][j], 'red'), end =" ")         #Displays the board after every move plus the nodes expanded count
+                else:
+                    print (self.board[i][j], end =" ")
+            print ()
+        print (colored ("\nNodes Expanded -->", 'yellow'), end =" ")
+        print (colored (self.nodes, 'red'))
 
-# Returns a boolean which indicates
-# whether any assigned entry
-# in the specified row matches
-# the given number.
-def used_in_row(arr, row, num):
-    for i in range(9):
-        if(arr[row][i] == num):
+    def display_test(self):
+        for i in range(self.dimensions):
+            for j in range(self.dimensions):
+                if (self.test[i][j] == '0'):                                    #Displays the puzzle board which the program will attempt to solve
+                    print (colored (self.test[i][j], 'red'), end =" ")
+                else:
+                    print (self.test[i][j], end =" ")
+            print ()
+
+    def getLength(self,lst):
+        if 'x' in lst or lst == []:                                             #Gets the length of the list of choices for an element...
+            return 10                                                           #return 10 in case of a "given" element
+        else:
+            return len(lst)
+
+    def get_location(self):
+        Choice_Map = list(map(self.getLength,self.list_of_choices_list))        #Makes the map of length of list of choices and list of choices for an element
+        minimum = min(Choice_Map)
+        if minimum == 10:
+            return (-1,-1)
+        index = Choice_Map.index(minimum)                                       #gives the location of the element that has least number
+        return(index // 9, index % 9)                                           #of choices
+
+    def update_choices_list(self,row,col):
+        Cell = [str(i) for i in range(1 ,self.dimensions + 1)]                  #upadates the list of list of choices by using 4 constraints
+                                                                                #Constraint1: Must be a unique number
+        for i in range(self.dimensions):
+            if self.board[row][i] != '0':
+                if self.board[row][i] in Cell:                                  #Constraint2: remove choices by checking for redundancies in the current row
+                    Cell.remove(self.board[row][i])
+
+        for i in range(self.dimensions):
+            if self.board[i][col] != '0':
+                if self.board[i][col] in Cell:                                  #Constraint3: remove choices by checking for redundancies in the curent column
+                    Cell.remove(self.board[i][col])
+
+        boxRow = row - row%3
+        boxCol = col - col%3
+        for i in range(3):
+            for j in range(3):
+                if self.board[boxRow+i][boxCol+j]!=0:                           #Constraint4: remove choices by checking for redundancies in the current box
+                    if self.board[boxRow+i][boxCol+j] in Cell:
+                        Cell.remove(self.board[boxRow+i][boxCol+j])
+        return Cell
+
+    def get_list_of_choices_list(self):
+        list=[]
+        for row in range(self.dimensions):
+            for col in range(self.dimensions):                                  #returns the list of list of choices
+                if self.board[row][col] != '0':
+                    list.append(['x'])
+                else:
+                    list.append(self.update_choices_list(row,col))              #update the list of list is called here
+        return list
+
+    def is_choices_list_empty(self,row,col,choice):
+        element = self.list_of_choices_list.pop(row*9 + col)
+        if [] in self.list_of_choices_list:
+            self.list_of_choices_list.insert(row*9+col,element)                 #Checks if the choices for a "element to be filled"
+            return True                                                         #are exhausted or not
+        else:
+            self.list_of_choices_list.insert(row*9+col,element)
+            return False
+
+    def solver(self):
+        location = self.get_location()                                          #Gets the location of the element with least number of choices
+        if location[0] == -1:
             return True
-    return False
+        else:
+            self.nodes+=1                                                       #Increments the nodes expanded variable
+            # notgiven = self.getRemainingValues()
+            row = location[0]
+            col = location[1]
+            for choice in self.list_of_choices_list[row*9+col]:                 #picking a choice from the list of choices for the selected element
+                choice_str = str(choice)
+                self.board[row][col] =  choice_str
+                cpy = copy.deepcopy(self.list_of_choices_list)                  #keeping a copy in case the function backtracks
+                self.list_of_choices_list = self.get_list_of_choices_list()
+                os.system('cls')
+                self.display_test()                                             #displaying the puzzle board
+                print(colored ("\nABOVE SUDOKU PUZZLE IS BEING SOLVED\n", 'yellow'))
+                self.display()                                                  #displaying the board with 0.25sec delay after every move
+                time.sleep(0.25)
+                if not self.is_choices_list_empty(row,col,choice_str):          #if the choices list is not exhausted the function recurrs
+                    if self.solver():
+                        return True
+                self.board[row][col] = '0'                                      #in case the function backtracks
+                self.list_of_choices_list = cpy                                 #restoring the choices list
 
-# Returns a boolean which indicates
-# whether any assigned entry
-# in the specified column matches
-# the given number.
-def used_in_col(arr, col, num):
-    for i in range(9):
-        if(arr[i][col] == num):
-            return True
-    return False
+            return False
 
-# Returns a boolean which indicates
-# whether any assigned entry
-# within the specified 3x3 box
-# matches the given number
-def used_in_box(arr, row, col, num):
-    for i in range(3):
-        for j in range(3):
-            if(arr[i + row][j + col] == num):
-                return True
-    return False
 
-# Checks whether it will be legal
-# to assign num to the given row, col
-# Returns a boolean which indicates
-# whether it will be legal to assign
-# num to the given row, col location.
-def check_location_is_safe(arr, row, col, num):
-
-    # Check if 'num' is not already
-    # placed in current row,
-    # current column and current 3x3 box
-    return not used_in_row(arr, row, num) and not used_in_col(arr, col, num) and not used_in_box(arr, row - row % 3,col - col % 3, num)
-
-# Takes a partially filled-in grid
-# and attempts to assign values to
-# all unassigned locations in such a
-# way to meet the requirements
-# for Sudoku solution (non-duplication
-# across rows, columns, and boxes)
-def solve_sudoku(arr):
-    global count
-    count += 1
-    # 'l' is a list variable that keeps the
-    # record of row and col in
-    # find_empty_location Function
-    l =[0, 0]
-
-    # If there is no unassigned
-    # location, we are done
-    if(not find_empty_location(arr, l)):
-        return True
-
-    # Assigning list values to row and col
-    # that we got from the above Function
-    row = l[0]
-    col = l[1]
-
-    # consider digits 1 to 9
-    for num in range(1, 10):
-
-        # if looks promising
-        if(check_location_is_safe(arr,
-                          row, col, num)):
-
-            # make tentative assignment
-            arr[row][col]= num
-            os.system('cls')
-            print_grid(test)
-            #print()
-            print(colored ("\nABOVE SUDOKU PUZZLE IS BEING SOLVED\n", 'yellow'))
-            #print()
-            print_grid(grid)
-            print (colored ("\nNodes Expanded -->", 'yellow'), end =" ")
-            print (colored (count, 'red'))
-            #time.sleep(0.25)
-            # return, if success,
-            # ya !
-            if(solve_sudoku(arr)):
-                return True
-
-            # failure, unmake & try again
-            arr[row][col] = 0
-
-    # this triggers backtracking
-    return False
-
-# Driver main function to test above functions
-if __name__=="__main__":
-
-    # creating a 2D array for the grid
-    #grid =[[0 for x in range(9)]for y in range(9)]
-    #test =[[0 for x in range(9)]for y in range(9)]
-    # assigning values to the grid
-    os.system('cls')
-    fileName = input("Enter file name: ")
-    if fileName.strip() == "":
-        fileName = "q1.txt"
-    data = open(fileName).read()
-    data = [ int(eachNum) for eachNum in data.split() ]
-    #print(data)
-    test = np.array(data).reshape(9,9)
-    print()
-    print(test)
-    print(colored ("\nABOVE SUDOKU PUZZLE WILL BE SOLVED using Purely Backtracking method\n", 'yellow'))
-    grid = deepcopy(test)
-    input("Press Enter to continue...")
-    # if success print the grid
-    if(solve_sudoku(grid)):
-        #print_grid(grid)
-        print(colored ("\nSolved...", 'yellow'))
-    else:
-        print ("No solution exists")
+#DRIVER CODE
+os.system('cls')
+fileName = input("Enter file name: ")
+if fileName.strip() == "":                                                      #Aking user for the file name
+    fileName = "p1"
+s = ai(9,'{}.txt'.format(fileName))
+print()
+s.display_test()
+print(colored ("\nABOVE SUDOKU PUZZLE WILL BE SOLVED using ", 'yellow'), end =" ")
+print(colored ("Constraint Satisfaction ", 'red'), end =" ")                    #GUI DISPLAY
+print(colored ("method \n", 'yellow'))
+input("Press Enter to continue...")
+if(s.solver()):
+    print(colored ("\nSolved...", 'yellow'))
+else:
+    print ("No solution exists")                                                #Prints No solution exists if program fails
